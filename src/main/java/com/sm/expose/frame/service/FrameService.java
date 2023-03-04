@@ -36,7 +36,7 @@ public class FrameService {
 
     }
 
-    public List<FrameDetailDto> getFramesByCategory(String categoryQuery){
+    public List<FrameDetailDto> getFramesByCategory(Long userId, String categoryQuery){
 
         //들어온 쿼리 카테고리 리스트로 만듦
         List <String> categories = Arrays.asList(categoryQuery.split(","));
@@ -57,10 +57,22 @@ public class FrameService {
 
         List<Long> removeDuplicateFrame = frameIdList.stream().distinct().collect(Collectors.toList());
 
+        //사용자가 좋아요한 프레임들
+        List<Long> LikeFrameIds = new ArrayList<>();
+        List<FrameUser> frameUsers = frameUserRepository.findByFrameUserLike(userId);
+
+        //좋아요한 프레임들의 아이디
+        for(int i=0; i<frameUsers.size(); i++){
+            LikeFrameIds.add(frameUsers.get(i).getFrame().getFrameId());
+        }
+
         for(int i=0; i<removeDuplicateFrame.size(); i++){
             Optional<Frame> frame = frameRepository.findById(removeDuplicateFrame.get(i));
             FrameDetailDto frameDetailDto = FrameDetailDto.from(frame.get());
             frameDetailDto.setCategories(this.getCategory(frame.get()));
+            if(LikeFrameIds.contains(removeDuplicateFrame.get(i))){
+                frameDetailDto.setLike_state(true);
+            }
             result.add(frameDetailDto);
         }
         return result;
@@ -160,7 +172,7 @@ public class FrameService {
 //
 //    }
 
-    public List<FrameDetailDto> getContentBasedFrame(Map<String, Integer> hm){
+    public List<FrameDetailDto> getContentBasedFrame(User user, Map<String, Integer> hm){
 
         List<String> categories = new ArrayList<>();
         List<FrameDetailDto> result = new ArrayList<>();
@@ -255,12 +267,24 @@ public class FrameService {
             }
         }
 
+        //사용자가 좋아요한 프레임들
+        List<FrameUser> frameUsers = frameUserRepository.findByFrameUserLike(user.getUserId());
+        List<Long> LikeFrameIds = new ArrayList<>();
+
+        //좋아요한 프레임들의 아이디
+        for(int i=0; i<frameUsers.size(); i++){
+            LikeFrameIds.add(frameUsers.get(i).getFrame().getFrameId());
+        }
+
         //최종적으로 프레임 3개 + 사용자 취향과 관계없는 랜덤 프레임1개 를 결과로 보내주기 위한 for 문
         //앞에서 랜덤으로 뽑은 프레임 id 3개를 repo에서 찾아서 dto로 변환하여 result 리스트에 추가해줌
         for(int i=0; i<frameIdList.size(); i++){
             Optional<Frame> frame = frameRepository.findById(frameIdList.get(i));
             FrameDetailDto frameDetailDto = FrameDetailDto.from(frame.get());
             frameDetailDto.setCategories(this.getCategory(frame.get()));
+            if(LikeFrameIds.contains(frameIdList.get(i))){
+                frameDetailDto.setLike_state(true);
+            }
             result.add(frameDetailDto);
         }
 
@@ -324,6 +348,14 @@ public class FrameService {
                     Integer selfie = user.getSelfie()+1;
                     userUpdateDto.setSelfie(selfie);
                     break;
+                case "two":
+                    Integer two = user.getTwo()+1;
+                    userUpdateDto.setSit(two);
+                    break;
+                case "many":
+                    Integer many = user.getMany()+1;
+                    userUpdateDto.setSelfie(many);
+                    break;
             }
         }
 
@@ -370,6 +402,7 @@ public class FrameService {
             Optional<Frame> frame = frameRepository.findById(frameIdList.get(i));
             FrameDetailDto frameDetailDto = FrameDetailDto.from(frame.get());
             frameDetailDto.setCategories(this.getCategory(frame.get()));
+            frameDetailDto.setLike_state(true);
             result.add(frameDetailDto);
         }
         return result;
@@ -380,7 +413,6 @@ public class FrameService {
         Long userId = user.getUserId();
         FrameUser frameUser = frameUserRepository.findByFrameUser(frameId, userId);
         frameUser.setLikeState(false);
-
     }
 
     public List<String> getCategory(Frame categoryFrame){
@@ -393,6 +425,7 @@ public class FrameService {
 
         return categories;
     }
+
 
 //    public List<String> getUsers(Frame categoryFrame){
 //        Optional<Frame> frame = frameRepository.findById(categoryFrame.getFrameId());

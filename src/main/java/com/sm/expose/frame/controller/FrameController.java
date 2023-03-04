@@ -15,12 +15,16 @@ import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import springfox.documentation.annotations.ApiIgnore;
 
 import java.io.IOException;
 import java.security.Principal;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Api(tags={"프레임 API"})
 @RestController
@@ -33,15 +37,31 @@ public class FrameController {
     private final CategoryService categoryService;
     private final UserDetailsServiceImpl userDetailsService;
 
-    @ApiOperation(value = "프레임 카테고리별 조회", notes = "프레임 카테고리별 조회 엔드 포인트")
+    @ApiOperation(value = "이미지 데이터 결과 받기 테스트 용")
+    @PostMapping(value = "/test", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public String test(@RequestPart(value = "multipartFile", required = false) List<MultipartFile> multipartFile) throws IOException {
+        System.out.println(multipartFile);
+        if(multipartFile != null){
+            return "파일 개수 : " + multipartFile.size();
+        }
+        else{
+            return "file is null";
+        }
+    }
+
+    @ApiOperation(value = "프레임 카테고리별 조회(회원)", notes = "프레임 카테고리별 조회 엔드 포인트")
     @ApiImplicitParam(name="category", value = "half,whole")
     @GetMapping()
-    public EntityResponseDto.getFrameAllResponseDto getFrameByCategory(
-            @RequestParam(name="category", required = false) String category) {
-
-        List<FrameDetailDto> responseData = frameService.getFramesByCategory(category);
+    public EntityResponseDto.getFrameAllResponseDto getFrameByCategory(@ApiIgnore Principal principal, @RequestParam(name="category", required = false) String category) {
+        if(principal != null){
+            User user = userDetailsService.findUser(principal);
+            List<FrameDetailDto> responseData = frameService.getFramesByCategory(user.getUserId(), category);
+            return new EntityResponseDto.getFrameAllResponseDto(200, "프레임 조회 성공", responseData);
+        }
+        List<FrameDetailDto> responseData = frameService.getFramesByCategory(0L, category);
         return new EntityResponseDto.getFrameAllResponseDto(200, "프레임 조회 성공", responseData);
     }
+
 
     @ApiOperation(value = "프레임 상세 조회", notes = "프레임 하나를 선택 해서 가져 온다.")
     @GetMapping("/{frameId}")
@@ -102,7 +122,7 @@ public class FrameController {
         Map<String, Integer> sortCategories = frameService.sortByValue(categories);
 
         //정렬한 카테고리 기준으로 프레임 찾아주기
-        List<FrameDetailDto> responseData = frameService.getContentBasedFrame(sortCategories);
+        List<FrameDetailDto> responseData = frameService.getContentBasedFrame(user, sortCategories);
 //        FrameDetailDto test = frameService.getCollaborationFilter(user);
 
         return new EntityResponseDto.getFrameAllResponseDto(200, "추천 프레임 조회 성공", responseData);
